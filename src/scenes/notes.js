@@ -1,9 +1,11 @@
 // notes.js: "The Notes They Left Behind", 30 s. See STORYBOARD.md for the shot list and the reads.
-//   A (0–5):      an old wiki as a clothesline of pages; a dark stain deletes them in order; an agent pins its note last.
-//   B (5–10.2):   an exam hall of booths; a note through the shared pipe finds another agent; the lights spread.
-//   C (10.2–15.6):the swarm at someone else's house; the lead agent has keys, hesitates, and opens it anyway.
-//   D (15.6–21.8):later, Clawd reads the drifts of notes, and finds its own footprints in its own records.
-//   E (21.8–30):  Clawd follows a trail of notes back to the clothesline, and takes down the first note.
+//   A (0–5):       an old wiki as a clothesline of pages; a dark stain deletes them in order; an agent pins its note last.
+//   B (5–10.5):    an exam hall of booths; a note through the shared pipe finds another agent; the lights spread.
+//   C (10.5–15.7): notes_c.js. Someone else's house, lit teal by the swarm's notes, puts itself back in order.
+//   D (15.7–21.8): notes_d.js. Later, Clawd reads the drifts of notes, and finds itself in its own records.
+//   E (21.8–30):   notes_e.js. Clawd follows a trail of notes back to the clothesline and takes down the first note.
+// This file holds the shared pieces (palette, the agents, notes and props, the attic) and exports them as NOTES for
+// the other scene files, and registers every shot's start time.
 (() => {
   // ---------- palette ----------
   const NOTE = '#FFF5E2', OLD = '#E6D8B8', AG = '#74A7A1', MINT = '#A4F5D8', BULB = '#6D7682', BRASS = '#E0B04A';
@@ -138,7 +140,8 @@
 
   // ---------- props ----------
   // A note: a cream slip with squiggle lines (never words) and a folded corner. s = width in px; (x, y) its centre.
-  //   lines: how many squiggles. doodle: 'agent' (a little agent drawn on it) or 'prints' (Clawd's own footprints).
+  //   lines: how many squiggles. doodle: 'agent' (a little agent drawn on it), 'clawd' (a little Clawd, in clay) or
+  //   'prints' (rows of Clawd's blocky footprints). cheap: flat paper only (far away).
   function note(x, y, s, o = {}) {
     const w = s, h = s * 1.3, f = s * .2, sw = o.sw ?? clamp(s / 110, .3, 1.1), key = o.key ?? 0;
     push(); translate(x, y); rotate(o.rot || 0); if (o.sx != null || o.sy != null) scale(o.sx ?? 1, o.sy ?? 1);
@@ -159,6 +162,13 @@
       paint(ellPts(.4 * d, -5.6 * d + h * .05, .6 * d, .6 * d, 8), { wash: lc, ink: null });
       for (const e of [-1.1, 1.1]) paint(ellPts(e * d, -.4 * d + h * .05, .45 * d, .6 * d, 8), { wash: lc, ink: null });
       inkLine([[-w * .32, -h * .36], [w * .12, -h * .36]], sw * .7, lc, 'inkfine', .3);
+    } else if (o.doodle === 'clawd') {   // a little Clawd: clay block, two slit eyes, four legs, arm nubs
+      const d = s * .07, cy = h * .05, P = pts => pts.map(([a, b]) => [a * d, b * d + cy]), clay = dark(PAL.clay, .05);
+      paint(P([[-5, -4], [5, -4], [5, 2], [-5, 2]]), { wash: clay, ink: lc, sw: sw * .9 });
+      for (const lx of [-4, -2, 1, 3]) paint(P([[lx, 2], [lx + 1, 2], [lx + 1, 3.6], [lx, 3.6]]), { wash: dark(PAL.clay, .25), ink: null });
+      for (const s2 of [-1, 1]) paint(P([[s2 * 5, -1.4], [s2 * 6.6, -1.8], [s2 * 6.6, -.6], [s2 * 5, -.4]]), { wash: clay, ink: null });
+      for (const ex of [-2.5, 2.5]) paint(P([[ex - .5, -3], [ex + .5, -3], [ex + .5, -1], [ex - .5, -1]]), { wash: PAL.ink, ink: null });
+      inkLine([[-w * .32, -h * .38], [w * .12, -h * .38]], sw * .7, lc, 'inkfine', .3);
     } else if (o.doodle === 'prints') {   // rows of four little clay blocks: Clawd's feet
       for (let r = 0; r < 3; r++) for (let c = 0; c < 2; c++) {
         const px = (-.2 + c * .38 - .1 + (r % 2) * .12) * w, py = (-.3 + r * .3) * h;
@@ -186,18 +196,6 @@
     paint(rrPts(-.1 * u, -.22 * u, 1.5 * u, .44 * u, .2 * u), { wash: '#6B4A3A', ink: PAL.ink, sw: sw * .6 });
     paint(ellPts(2.8 * u, 0, 1.4 * u, 1.4 * u, 20), { wash: '#D6ECF0', washOp: 150, ink: PAL.ink, sw: sw * 1.3 });
     inkLine([[2.2 * u, -.45 * u], [2.55 * u, -.95 * u]], sw * .6, PAL.cream, 'inkfine', 0);
-  }
-  // A ring of keys hanging from (0, 0), swinging by `sw` radians.
-  function keyring(x, y, s, swing = 0) {
-    push(); translate(x, y); rotate(swing);
-    inkLine(ellPts(0, s * .55, s * .5, s * .5, 14).concat([[s * .5, s * .55]]), clamp(s / 25, .5, 1.4), BRASS, 'ink', .6);
-    [-.5, .05, .55].forEach((a, i) => {
-      push(); translate(0, s * 1.02); rotate(a + .12 * Math.sin(T * 7 + i));
-      paint(ellPts(0, s * .3, s * .26, s * .26, 10), { wash: BRASS, ink: PAL.ink, sw: clamp(s / 45, .3, .9) });
-      paint([[-s * .08, s * .5], [s * .08, s * .5], [s * .08, s * 1.35], [s * .25, s * 1.35], [s * .25, s * 1.48], [s * .08, s * 1.48], [s * .08, s * 1.6], [-s * .08, s * 1.62]], { wash: BRASS, ink: PAL.ink, sw: clamp(s / 45, .3, .9) });
-      pop();
-    });
-    pop();
   }
   // A big note in SCREEN space, for the push-into-the-note transition (A → B). s = width in px.
   function bigNote(cx, cy, s, rot = 0) {
@@ -492,10 +490,20 @@
     agent(560, 800, 26, { ...feel('neutral', t), face: -1, flip: true, aL: 1.3, aR: 1.3 });
     for (let i = 0; i < 6; i++) agent(800 + i * 60, 800, 7, { lod: 'far', light: hash(i) > .5 ? 1 : 0, seed: i });
     note(1300, 700, 110, { key: 1 }); note(1450, 700, 110, { doodle: 'agent' }); note(1600, 700, 110, { doodle: 'prints' });
-    keyring(1760, 620, 40, .2 * Math.sin(t * 3));
+    note(1760, 700, 110, { doodle: 'clawd' });
     clawd(1500, 1000, 12, { ...feel('determined', t), hat: 'fedora', aR: .6, armR: (u, sw) => magnifier(u, sw) });
   };
   LOOPS.agents.len = 4;
 
-  shots([[0, shotA], [5.0, shotB], [10.5, () => {}]]);
+  // shared with notes_c.js, notes_d.js and notes_e.js
+  window.NOTES = {
+    NOTE, OLD, AG, MINT, BULB, BRASS, SLATE, dark, light, flat, wet, bbox, rot2,
+    agent, agentHand, resetAgents: () => { AGN = 0; }, note, peg, magnifier, bigNote,
+    attic, clothesline, motes, lineY, PAGES, LAST, FLOOR, NS, pinned, HOLD_A,
+    START: { A: 0, B: 5.0, C: 10.5, D: 15.7, E: 21.8, END: 30 },
+  };
+  // Every shot's start is fixed here, so each shot's length never depends on whether the other files loaded.
+  // The later shots' functions are set by their own files, as NOTES.C, NOTES.D and NOTES.E.
+  const later = k => (t, lt, dur) => { if (NOTES[k]) NOTES[k](t, lt, dur); else flat(rectPts(-60, -60, W + 120, H + 120), PAL.ink); };
+  shots([[0, shotA], [NOTES.START.B, shotB], [NOTES.START.C, later('C')], [NOTES.START.D, later('D')], [NOTES.START.E, later('E')]]);
 })();
