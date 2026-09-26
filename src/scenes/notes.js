@@ -149,7 +149,15 @@
     if (o.cheap || s > 500) {   // far away, or huge (the transition): flat paper, few strokes
       const pts = [[-w / 2, -h / 2], [w / 2 - f, -h / 2], [w / 2, -h / 2 + f], [w / 2, h / 2], [-w / 2, h / 2]];
       flat(pts, o.col || NOTE);
-      if (s > 500) { flat([[w / 2 - f, -h / 2], [w / 2 - f, -h / 2 + f], [w / 2, -h / 2 + f]], dark(o.col || NOTE, .12)); o = { ...o, bare: true, ink: null }; }
+      if (s > 500) {   // huge: the fold, and an ink border of constant width in flat colour (a brush outline this long drops out)
+        flat([[w / 2 - f, -h / 2], [w / 2 - f, -h / 2 + f], [w / 2, -h / 2 + f]], dark(o.col || NOTE, .12));
+        const bw = 11 / Math.max(.2, Math.abs(o.sx ?? 1));
+        for (let i = 0; i < pts.length; i++) {
+          const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % pts.length], d = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / d * bw / 2, ny = (bx - ax) / d * bw / 2;
+          flat([[ax - nx - (bx - ax) / d * bw / 2, ay - ny - (by - ay) / d * bw / 2], [bx - nx + (bx - ax) / d * bw / 2, by - ny + (by - ay) / d * bw / 2], [bx + nx + (bx - ax) / d * bw / 2, by + ny + (by - ay) / d * bw / 2], [ax + nx - (bx - ax) / d * bw / 2, ay + ny - (by - ay) / d * bw / 2]], PAL.ink);
+        }
+        o = { ...o, bare: true, ink: null };
+      }
       else { pop(); return; }
     }
     paint([[-w / 2, -h / 2], [w / 2 - f, -h / 2], [w / 2, -h / 2 + f], [w / 2, h / 2], [-w / 2, h / 2]], { wash: o.col || NOTE, ink: o.ink === null ? null : PAL.ink, sw });
@@ -399,6 +407,9 @@
   const tLit2 = 3.1, tLit1 = 3.55, tBack0 = 3.85, tBack1 = 4.7, tWhip = 5.1;
   function shotB(t, lt, dur) {
     AGN = 0;
+    // the brush wipe into shot C (notes_c.js draws it, as NOTES.wipeBC): once its strokes cover the frame, skip the hall
+    const pw = (lt - (dur - .3)) / .6, wipe = NOTES.wipeBC || brushWipe;
+    if (pw > 0 && NOTES.wipeCovers && NOTES.wipeCovers(pw)) { wipe(pw, [SLATE, AG]); return; }
     const u = 24, a1 = F1, a2 = F2 + 30, u2 = u;
     // agent 1: posts the note, watches it go, and lights up when agent 2 answers
     const m1 = emotions(lt, [[0, 'hopeful', { lookY: -1 }], [tUp + .1, 'hopeful', { lookX: 1, lookY: -1 }], [tLit1, 'excited']], { take: .7 });
@@ -418,10 +429,13 @@
     boilSeed('hall');
     flat(rectPts(-5200, -3200, 13000, 7800), SLATE);
     // the far hall, only once the camera pulls back: rows and columns of booths, lights coming on in a wave
+    // (during the wipe into shot C, what its strokes already cover isn't drawn: x screen, left of wEdge)
+    const wEdge = pw > 0 && NOTES.wipeEdge ? NOTES.wipeEdge(pw) : -1e9, under = x => 960 + (x - cx) * zoom < wEdge;
     if (lt > tBack0 - .05) {
       for (let r = -2; r <= 1; r++) for (let c = -4; c <= 6; c++) {
         if (r === 0 && (c === 0 || c === 1)) continue;
         const ox = BX + c * BW, oy = r * BH, d = Math.hypot(c - .5, r * 1.3);
+        if (under(ox + BW + 40)) continue;
         push(); translate(0, oy);
         booth(ox, `${r},${c}`, true);
         const L = ease(seg(lt, 4.05 + d * .09, 4.2 + d * .09)) * (hash(r * 31 + c) > .12 ? 1 : 0);
@@ -436,6 +450,7 @@
           const k = seg(lt, 4.2 + hash(i + r * 17) * .5, 9);
           if (k <= 0) continue;
           const x = -2200 + frac(hash(i * 3 + r) + (lt - 4) * .45) * 7000;
+          if (under(x + 60)) continue;
           boilSeed(`rn${r},${i}`); note(x, PIPE_Y, 58, { rot: .3, cheap: true });
         }
         pop();
@@ -477,7 +492,7 @@
     camEnd();
     boilSeed('transition');
     if (lt < .55) { const k = easeOut(seg(lt, 0, .55)); bigNote(lerp(W / 2, handScr[0], k), lerp(H / 2, handScr[1], k), lerp(2700, NS * zoom, k), -.1 * k); }
-    if (lt > dur - .3) brushWipe((lt - (dur - .3)) / .6, [SLATE, AG]);
+    if (pw > 0) wipe(pw, [SLATE, AG]);
   }
 
   // ---------- model sheet for the agent and props (not part of the video) ----------
