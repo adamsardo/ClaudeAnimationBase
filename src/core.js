@@ -183,7 +183,15 @@ function centred(pts, draw) {
   push(); translate(cx, cy); draw(pts.map(([x, y]) => [x - cx, y - cy])); pop();
 }
 function paint(pts, o = {}) { centred(pts, (P) => paintAt(P, o)); }
+// PROJECT.lite: no watercolour fills, which cost seconds a frame each without a GPU. Each fill becomes a glaze instead,
+// a translucent wash of the same colour over the same shape, so shading, shadows and skies keep their shapes.
+const LITE = !!PROJECT.lite;
 function paintAt(pts, o) {
+  if (LITE && o.fill) {
+    const glaze = { wash: o.fill, washOp: (o.fillOp ?? 170) * .6 };
+    if (o.wash || o.hatch) paintAt(pts, { ...o, fill: null, ink: null });
+    o = o.wash || o.hatch ? { ...glaze, ink: o.ink, sw: o.sw, br: o.br, curv: o.curv } : { ...o, ...glaze, fill: null };
+  }
   if (o.wash || o.fill || o.hatch) {
     if (o.wash) brush.wash(o.wash, o.washOp ?? 255); else brush.noWash();
     if (o.fill) { brush.fill(o.fill, o.fillOp ?? 170); brush.fillBleed(o.bleed ?? .1); brush.fillTexture(o.tex ?? .4, o.border ?? .35); } else brush.noFill();
