@@ -151,16 +151,16 @@
       flat(pts, o.col || NOTE);
       if (s > 500) {   // huge: the fold, and an ink border of constant width in flat colour (a brush outline this long drops out)
         flat([[w / 2 - f, -h / 2], [w / 2 - f, -h / 2 + f], [w / 2, -h / 2 + f]], dark(o.col || NOTE, .12));
-        const bw = 11 / Math.max(.2, Math.abs(o.sx ?? 1));
+        const bw = 14 / Math.max(.2, Math.abs(o.sx ?? 1));
         for (let i = 0; i < pts.length; i++) {
           const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % pts.length], d = Math.hypot(bx - ax, by - ay) || 1, nx = -(by - ay) / d * bw / 2, ny = (bx - ax) / d * bw / 2;
           flat([[ax - nx - (bx - ax) / d * bw / 2, ay - ny - (by - ay) / d * bw / 2], [bx - nx + (bx - ax) / d * bw / 2, by - ny + (by - ay) / d * bw / 2], [bx + nx + (bx - ax) / d * bw / 2, by + ny + (by - ay) / d * bw / 2], [ax + nx - (bx - ax) / d * bw / 2, ay + ny - (by - ay) / d * bw / 2]], PAL.ink);
         }
-        o = { ...o, bare: true, ink: null };
+        o = { ...o, bare: true, ink: null, laid: true };
       }
       else { pop(); return; }
     }
-    paint([[-w / 2, -h / 2], [w / 2 - f, -h / 2], [w / 2, -h / 2 + f], [w / 2, h / 2], [-w / 2, h / 2]], { wash: o.col || NOTE, ink: o.ink === null ? null : PAL.ink, sw });
+    if (!o.laid) paint([[-w / 2, -h / 2], [w / 2 - f, -h / 2], [w / 2, -h / 2 + f], [w / 2, h / 2], [-w / 2, h / 2]], { wash: o.col || NOTE, ink: o.ink === null ? null : PAL.ink, sw });
     if (!o.bare) paint([[w / 2 - f, -h / 2], [w / 2 - f, -h / 2 + f], [w / 2, -h / 2 + f]], { wash: dark(o.col || NOTE, .12), ink: o.ink === null ? null : PAL.ink, sw: sw * .7 });
     const lc = mixCol(o.col || NOTE, PAL.ink, o.fade ?? .55);
     if (o.doodle === 'agent') {
@@ -204,6 +204,20 @@
     paint(rrPts(-.1 * u, -.22 * u, 1.5 * u, .44 * u, .2 * u), { wash: '#6B4A3A', ink: PAL.ink, sw: sw * .6 });
     paint(ellPts(2.8 * u, 0, 1.4 * u, 1.4 * u, 20), { wash: '#D6ECF0', washOp: 150, ink: PAL.ink, sw: sw * 1.3 });
     inkLine([[2.2 * u, -.45 * u], [2.55 * u, -.95 * u]], sw * .6, PAL.cream, 'inkfine', 0);
+  }
+  // A smear drawing of the magnifier (lens centre p0 → p1 along an arc h px high, at progress k), for the one or two
+  // frames of a drawn turn that carry the hand across the body: the glass stretched into one tapered streak with its
+  // ring at the head and a couple of speed lines, instead of a crisp lens jumping from one side to the other.
+  function lensSmear(p0, p1, k, u, h = 0, sw = 1) {
+    const P = []; for (let i = 0; i <= 7; i++) P.push(arcPt(p0, p1, h, lerp(Math.max(0, k - .6), k, i / 7)));
+    const [hx, hy] = P[7], [bx, by] = P[5], a = Math.atan2(hy - by, hx - bx), len = Math.hypot(hx - P[0][0], hy - P[0][1]);
+    if (len > 1.5 * u) {
+      paint(ribbon(P, .15 * u, 2.4 * u), { wash: '#D6ECF0', washOp: 150, ink: PAL.ink, sw: sw * .5, curv: .4 });
+      for (const o of [-.7, .8]) inkLine(P.slice(1, 6).map(([x, y]) => [x - Math.sin(a) * o * u, y + Math.cos(a) * o * u]), sw * .45, PAL.ink, 'inkfine', .5);
+    }
+    push(); translate(hx, hy); rotate(a);
+    paint(ellPts(0, 0, 1.55 * u, 1.2 * u, 18), { wash: '#D6ECF0', washOp: 170, ink: PAL.ink, sw: sw * 1.2 });
+    pop();
   }
   // A big note in SCREEN space, for the push-into-the-note transition (A → B). s = width in px.
   function bigNote(cx, cy, s, rot = 0) {
@@ -374,8 +388,9 @@
   function examCase(x, y, s, tug = 0, key = 'case') {
     boilSeed(key);
     const h = s * .75, top = y - s * .45 - h;
-    paint(rectPts(x - s * .35, y - s * .45, s * .7, s * .45, 2), { wash: '#6B4E48', ink: PAL.ink, sw: .8 });   // stand
-    paint(rectPts(x - s / 2, top, s, h, 2), { wash: '#5B4644', ink: PAL.ink, sw: .9 });                        // back
+    const stand = rectPts(x - s * .35, y - s * .45, s * .7, s * .45, 2), back = rectPts(x - s / 2, top, s, h, 2);
+    flat(stand, '#6B4E48'); paint(stand, { ink: PAL.ink, sw: .8 });                                             // stand
+    flat(back, '#5B4644'); paint(back, { ink: PAL.ink, sw: .9 });                                               // back
     inkLine([[x - s * .1, top + h * .9], [x - s * .1, top + h * .15]], 1.2, PAL.cream, 'ink', 0);             // the flag
     paint([[x - s * .1, top + h * .15], [x + s * .28, top + h * .27], [x - s * .1, top + h * .4]], { wash: '#D8394E', ink: PAL.ink, sw: .6 });
     paint(rectPts(x - s / 2 + 8, top + 8, s - 16, h - 16), { wash: '#BFD8E4', washOp: 70, ink: PAL.ink, sw: .8 });   // glass
@@ -393,8 +408,9 @@
   }
   const pipeGlint = (x0, x1, y, r = 34) => inkLine([[x0, y - r * .55], [x1, y - r * .55]], .7, '#C9D6EA', 'inkfine', 0);
   function funnel(x, y0, y1, r = 30) {
-    paint(rectPts(x - r, y0, 2 * r, y1 - y0 - 40), { wash: '#2D3450', ink: PAL.ink, sw: 1 });
-    paint([[x - r, y1 - 42], [x + r, y1 - 42], [x + r * 1.9, y1], [x - r * 1.9, y1]], { wash: '#3A4262', ink: PAL.ink, sw: 1 });
+    const tube = rectPts(x - r, y0, 2 * r, y1 - y0 - 40), mouth = [[x - r, y1 - 42], [x + r, y1 - 42], [x + r * 1.9, y1], [x - r * 1.9, y1]];
+    flat(tube, '#2D3450'); paint(tube, { ink: PAL.ink, sw: 1 });
+    flat(mouth, '#3A4262'); paint(mouth, { ink: PAL.ink, sw: 1 });
   }
   function booth(x0, key, far = false) {   // one booth from x0 to x0 + BW: its back panel, and its left-hand partition
     boilSeed('booth' + key);
@@ -404,7 +420,7 @@
   }
   // the note's journey: posted up funnel 1 → along the pipe → down funnel 2 → falls onto agent 2
   const tPost = .55, tUp = .8, tAcross = 1.0, tDown = 1.55, tOut = 1.8, tHit = 2.05, tCatch = 2.35;
-  const tLit2 = 3.1, tLit1 = 3.55, tBack0 = 3.85, tBack1 = 4.7, tWhip = 5.1;
+  const tLit2 = 3.1, tLit1 = 3.55, tBack0 = 3.85, tBack1 = 4.7, tWhip = 4.98;
   function shotB(t, lt, dur) {
     AGN = 0;
     // the brush wipe into shot C (notes_c.js draws it, as NOTES.wipeBC): once its strokes cover the frame, skip the hall
@@ -422,8 +438,9 @@
     if (lt < tHit) p2.dx = -.08 * tug;
     // camera: from agent 1's hand (under the big note) out to both booths, then far out over the whole hall, then a whip
     const Z = 1.42, zoom = lt < tBack0 ? kf(lt, [[0, 2.2], [1.1, Z]], ease) : lerp(Z, .34, ease(seg(lt, tBack0, tBack1)));
-    const whip = easeIn(seg(lt, tWhip, dur + .25));
-    const cx = lt < tBack0 ? kf(lt, [[0, 650], [1.1, 975]]) : lerp(975, 1250, ease(seg(lt, tBack0, tBack1))) + 5200 * whip;
+    // the whip: a small lean back to the left (anticipation), then it accelerates hard right, before the wipe covers it
+    const wk = seg(lt, tWhip, dur + .3), WL = dur + .3 - tWhip, whip = 9000 * wk * wk - 70 * Math.sin(Math.PI * seg(lt, tWhip - .3, tWhip + .06));
+    const cx = lt < tBack0 ? kf(lt, [[0, 650], [1.1, 975]]) : lerp(975, 1250, ease(seg(lt, tBack0, tBack1))) + whip;
     const cy = lt < tBack0 ? kf(lt, [[0, 720], [1.1, 590]]) : lerp(590, 520, ease(seg(lt, tBack0, tBack1)));
     camBegin(cx, cy, zoom);
     boilSeed('hall');
@@ -432,10 +449,11 @@
     // (during the wipe into shot C, what its strokes already cover isn't drawn: x screen, left of wEdge)
     const wEdge = pw > 0 && NOTES.wipeEdge ? NOTES.wipeEdge(pw) : -1e9, under = x => 960 + (x - cx) * zoom < wEdge;
     if (lt > tBack0 - .05) {
-      for (let r = -2; r <= 1; r++) for (let c = -4; c <= 6; c++) {
+      const vx0 = cx - 960 / zoom - 60, vx1 = cx + 960 / zoom + 60;   // (only what's on screen: the whip runs far right)
+      for (let r = -2; r <= 1; r++) for (let c = -4; c <= 12; c++) {
         if (r === 0 && (c === 0 || c === 1)) continue;
         const ox = BX + c * BW, oy = r * BH, d = Math.hypot(c - .5, r * 1.3);
-        if (under(ox + BW + 40)) continue;
+        if (under(ox + BW + 40) || ox > vx1 || ox + BW < vx0) continue;
         push(); translate(0, oy);
         booth(ox, `${r},${c}`, true);
         const L = ease(seg(lt, 4.05 + d * .09, 4.2 + d * .09)) * (hash(r * 31 + c) > .12 ? 1 : 0);
@@ -444,12 +462,12 @@
       }
       for (let r = -2; r <= 1; r++) {   // each row's pipe, with notes streaming right
         push(); translate(0, r * BH); boilSeed('rowpipe' + r);
-        if (r !== 0) { pipe(-2400, 4800, PIPE_Y); for (let c = -4; c <= 6; c++) flat(rectPts(BX + c * BW + BW / 2 - 12, PIPE_Y + 30, 24, 220), '#2D3450'); }
+        if (r !== 0) { pipe(-2400, 9400, PIPE_Y); for (let c = -4; c <= 12; c++) if (BX + c * BW < vx1 && BX + c * BW + BW > vx0) flat(rectPts(BX + c * BW + BW / 2 - 12, PIPE_Y + 30, 24, 220), '#2D3450'); }
         flat(rectPts(-5200, BFLOOR, 13000, 156), '#3C4560');
         for (let i = 0; i < 14; i++) {
           const k = seg(lt, 4.2 + hash(i + r * 17) * .5, 9);
           if (k <= 0) continue;
-          const x = -2200 + frac(hash(i * 3 + r) + (lt - 4) * .45) * 7000;
+          const x = -2200 + frac(hash(i * 3 + r) + (lt - 4) * .45) * 7000 + (cx - 1250);
           if (under(x + 60)) continue;
           boilSeed(`rn${r},${i}`); note(x, PIPE_Y, 58, { rot: .3, cheap: true });
         }
@@ -465,7 +483,7 @@
     examCase(1530, BFLOOR, 160, lt < tHit ? tug : spring(lt, tHit, 5, 20) * .4, 'case2');
     boilSeed('pipes');
     funnel(F1, PIPE_Y, MOUTH_Y); funnel(F2, PIPE_Y, MOUTH_Y);
-    pipe(-2400, 4800, PIPE_Y);
+    pipe(-2400, 9400, PIPE_Y);
     // the note: in agent 1's hand, then through the pipe, then falling onto agent 2 and into its hand
     boilSeed('noteB');
     const h1 = agentHand(a1, BFLOOR, u, p1), held = [h1[0] + 4, h1[1] - NS * .6];
@@ -485,13 +503,19 @@
     }
     const ns = inPipe ? 44 : NS;
     note(np[0], np[1], ns, { rot: nr, key: 9, doodle: 'agent' });
-    boilSeed('glint'); pipeGlint(-2400, 4800, PIPE_Y);
+    boilSeed('glint'); pipeGlint(-2400, 9400, PIPE_Y);
     agent(a1, BFLOOR, u, { ...p1, seed: 2, boilKey: 'a1' });
     agent(a2, BFLOOR, u2, { ...p2, seed: 5, boilKey: 'a2' });
     const handScr = toScreen(held[0], held[1]);
     camEnd();
     boilSeed('transition');
     if (lt < .55) { const k = easeOut(seg(lt, 0, .55)); bigNote(lerp(W / 2, handScr[0], k), lerp(H / 2, handScr[1], k), lerp(2700, NS * zoom, k), -.1 * k); }
+    const speed = 2 * 9000 * wk / WL * zoom;   // the whip's speed on screen, px/s: dry-brush speed lines, longer the faster it goes
+    if (speed > 300) for (let i = 0; i < 16; i++) {
+      boilSeed('whip line' + i);
+      const y = 40 + (H - 80) * hash(i + 40), len = Math.min(1500, speed * (.14 + .14 * hash(i + 7))), x0 = frac(hash(i + 50) - lt * (1.5 + hash(i))) * (W + len) - len;
+      inkLine([[x0, y], [x0 + len, y + jit(2)]], .5 + .6 * hash(i + 3), i % 3 ? mixCol(SLATE, PAL.cream, .7) : mixCol(AG, PAL.cream, .5), 'inkfine', 0);
+    }
     if (pw > 0) wipe(pw, [SLATE, AG]);
   }
 
@@ -513,7 +537,7 @@
   // shared with notes_c.js, notes_d.js and notes_e.js
   window.NOTES = {
     NOTE, OLD, AG, MINT, BULB, BRASS, SLATE, dark, light, flat, wet, bbox, rot2,
-    agent, agentHand, resetAgents: () => { AGN = 0; }, note, peg, magnifier, bigNote,
+    agent, agentHand, resetAgents: () => { AGN = 0; }, note, peg, magnifier, lensSmear, bigNote,
     attic, clothesline, motes, lineY, PAGES, LAST, FLOOR, NS, pinned, HOLD_A,
     START: { A: 0, B: 5.0, C: 10.5, D: 15.7, E: 21.8, END: 30 },
   };

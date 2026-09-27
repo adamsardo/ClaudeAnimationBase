@@ -143,9 +143,13 @@
   // Over the turn to side view the magnifier is carried across in front of the body, from where the near arm holds it in
   // the front view (low at the left) to where it holds it in the side view (out in front): it swings down through the
   // middle, like a thing hanging from a hand, instead of jumping from one drawing to the next.
+  // Only the first and last frames of the carry are crisp (in the hand); between, the lens is a smear drawing along the
+  // same path, so the hand never has a gap to its handle and nothing seems to teleport.
   function carried(x, y, u, o, lt) {
     const k = ease(seg(lt, tTurn0, tCarry1)), sw = clamp(u / 15, .45, 2.4) * (o.swMul || 1);
     const F = { ...o, view: 'front', flip: false, smear: 0 }, S = { ...o, view: 'side', flip: false, smear: 0 };
+    if (k > .12 && k < .85) { NOTES.lensSmear(armTip(x, y, u, F, 'L', 2.8), armTip(x, y, u, S, 'L', 2.8), k, u, -45, sw); return; }
+    if (k >= .85) { withArm(x, y, u, S, 'L', (u, sw) => magnifier(u, sw)); return; }
     const a0 = armTip(x, y, u, F, 'L'), b0 = armTip(x, y, u, F, 'L', 1), a1 = armTip(x, y, u, S, 'L'), b1 = armTip(x, y, u, S, 'L', 1);
     const q0 = Math.atan2(b0[1] - a0[1], b0[0] - a0[0]), q1 = Math.atan2(b1[1] - a1[1], b1[0] - a1[0]);
     let dq = q1 - q0; while (dq > 0) dq -= TAU; while (dq < -TAU) dq += TAU;   // always round through "hanging down"

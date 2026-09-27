@@ -168,11 +168,11 @@
     return L;
   }
   // Clawd's arm transforms (as clawd() does them), for where a hand is in the world
-  function armTip(x, y, u, o, which) {
+  function armTip(x, y, u, o, which, ext = 0) {   // ext: that far further out along the hook's +x (2.8: the lens centre)
     const V = VIEWS[o.view] || VIEWS.front, A = V.arms.find(q => q[2] === which); if (!A) return [x, y];
     const [px, dir] = A, a = which === 'L' ? (o.aL ?? .2) : (o.aR ?? .2), sq = (o.sq || 0) + (o.take || 0), sm = clamp(o.smear || 0);
     let p;
-    if (dir === 0) { p = rot2([2.1 * u, 0], .7 - a); p[1] += .3 * u; } else p = rot2([dir * 2.2 * u, 0], dir < 0 ? a : -a);
+    if (dir === 0) { p = rot2([(2.1 + ext) * u, 0], .7 - a); p[1] += .3 * u; } else p = rot2([dir * (2.2 + ext) * u, 0], dir < 0 ? a : -a);
     p = [p[0] + (px + dir * .55 * clamp((Math.abs(a) - .7) / .9)) * u, p[1] - 4.5 * u];
     p = [p[0] * (o.flip ? -1 : 1) * (o.sx ?? 1) * (1 + sq * .6) * (1 + sm * .35), p[1] * (o.sy ?? 1) * (1 - sq)];
     p = rot2(p, o.rot || 0);
@@ -388,10 +388,18 @@
     const noteHook = uprightHook(o, o.flip ? 'L' : 'R', () => {
       push(); rotate(nrot * .6); note(GRIP[0], GRIP[1], NS, { rot: nrot * .4, key: 9, doodle: 'agent', col: mixCol(NOTE, '#FFF8E6', .25) }); pop();
     });
+    // On the turn to 3/4 at the take the hand swings from Clawd's front (side view) to its left flank (3/4) in one frame:
+    // for that stretch the lens is a smear drawing along the path, drawn after Clawd, instead of a crisp jump.
+    const ks = seg(lt, tTurnQ + .01, tTurnQ + .11), smearing = ks > 0 && ks < 1;
     const magHook = (u, sw) => magnifier(u, sw);
-    o.armL = o.flip ? (lt >= tRel ? noteHook : null) : magHook;
+    o.armL = o.flip ? (lt >= tRel ? noteHook : null) : smearing ? null : magHook;
     o.armR = o.flip ? magHook : (lt >= tRel ? noteHook : null);
     clawd(x, gy, U, o);
+    if (smearing) {
+      boilSeed('e lens smear');
+      const S = { ...o, view: 'side', flip: false, smear: 0 }, Q = { ...o, view: 'q', flip: false, smear: 0 };
+      NOTES.lensSmear(armTip(x, gy, U, S, 'L', 2.8), armTip(x, gy, U, Q, 'L', 2.8), ease(ks), U, 1.2 * U, clamp(U / 15, .45, 2.4));
+    }
     if (pegLate) lastPeg();
 
     // painted marks, on the note's side of the hat: the take's "!" and the reading dots (these pop quicker than the
